@@ -42,6 +42,63 @@ CREATE TABLE IF NOT EXISTS Reviews (
   FOREIGN KEY (course_id) REFERENCES Courses(course_id) ON DELETE CASCADE
 );
 
+-- PBL-2: sections, a named student roster, marks, attendance, and the FA outcome log.
+-- Reviews stay anonymous; nothing below links a student to a review.
+
+CREATE TABLE IF NOT EXISTS Sections (
+  section_id INT AUTO_INCREMENT PRIMARY KEY,
+  name       VARCHAR(20) NOT NULL UNIQUE,
+  fa_teacher INT NULL,
+  FOREIGN KEY (fa_teacher) REFERENCES Teachers(teacher_id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS Students (
+  student_id INT AUTO_INCREMENT PRIMARY KEY,
+  reg_no     VARCHAR(15) NOT NULL UNIQUE,
+  name       VARCHAR(60) NOT NULL,
+  section_id INT NOT NULL,
+  FOREIGN KEY (section_id) REFERENCES Sections(section_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS Tests (
+  test_id   INT AUTO_INCREMENT PRIMARY KEY,
+  course_id INT NOT NULL,
+  label     VARCHAR(30) NOT NULL,
+  max_marks DECIMAL(6,2) NOT NULL,
+  held_on   DATE NULL,
+  UNIQUE (course_id, label),
+  FOREIGN KEY (course_id) REFERENCES Courses(course_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS Marks (
+  student_id INT NOT NULL,
+  test_id    INT NOT NULL,
+  score      DECIMAL(6,2) NOT NULL,
+  PRIMARY KEY (student_id, test_id),
+  FOREIGN KEY (student_id) REFERENCES Students(student_id) ON DELETE CASCADE,
+  FOREIGN KEY (test_id)    REFERENCES Tests(test_id)       ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS Attendance (
+  student_id INT NOT NULL,
+  course_id  INT NOT NULL,
+  class_date DATE NOT NULL,
+  present    BOOLEAN NOT NULL,
+  PRIMARY KEY (student_id, course_id, class_date),
+  FOREIGN KEY (student_id) REFERENCES Students(student_id) ON DELETE CASCADE,
+  FOREIGN KEY (course_id)  REFERENCES Courses(course_id)   ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS FaOutcomes (
+  outcome_id INT AUTO_INCREMENT PRIMARY KEY,
+  student_id INT NOT NULL,
+  flag_kind  VARCHAR(40) NOT NULL,
+  outcome    VARCHAR(40) NOT NULL,
+  note       VARCHAR(300),
+  logged_on  DATE NOT NULL,
+  FOREIGN KEY (student_id) REFERENCES Students(student_id) ON DELETE CASCADE
+);
+
 INSERT IGNORE INTO Teachers (teacher_id, name, dept) VALUES
   (1, 'Faculty A', 'CSE (Data Science)'), (2, 'Faculty B', 'CSE (Data Science)'),
   (3, 'Faculty C', 'CSE (Core)'),         (4, 'Faculty D', 'ECE'),
@@ -58,3 +115,5 @@ INSERT IGNORE INTO Users (username, password, role, teacher_id) VALUES
   ('facultyA', 'pass', 'TEACHER', 1), ('facultyB', 'pass', 'TEACHER', 2),
   ('facultyC', 'pass', 'TEACHER', 3), ('facultyD', 'pass', 'TEACHER', 4),
   ('facultyE', 'pass', 'TEACHER', 5), ('facultyF', 'pass', 'TEACHER', 6);
+INSERT IGNORE INTO Sections (section_id, name, fa_teacher) VALUES
+  (1, 'AS1', NULL);
