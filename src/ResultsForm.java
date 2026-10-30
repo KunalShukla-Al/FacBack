@@ -45,6 +45,11 @@ public class ResultsForm extends JFrame {
             btnTeacher.setBounds(20, 445, 140, 30);
             add(btnTeacher);
             btnTeacher.addActionListener(e -> new AddTeacherForm(this).setVisible(true));
+        } else {
+            JButton btnImport = new JButton("Import Marks");
+            btnImport.setBounds(20, 445, 140, 30);
+            add(btnImport);
+            btnImport.addActionListener(e -> new ImportMarksForm(teacherId).setVisible(true));
         }
 
         JButton btnLogout = new JButton("Logout");

@@ -207,4 +207,83 @@ public class Database {
             }
         }
     }
+
+    /** Outcome of a marks import: how many rows landed, and reg numbers not on the roster. */
+    static class ImportResult {
+        final int imported;
+        final List<String> unknownRegNos;
+
+        ImportResult(int imported, List<String> unknownRegNos) {
+            this.imported = imported;
+            this.unknownRegNos = unknownRegNos;
+        }
+    }
+
+    /**
+     * Upsert marks for one test of a course from parsed reg_no -> score rows.
+     * Finds the test by (course, label), creating it (or refreshing its max) so a
+     * freshly announced test imports in one step. Reg numbers absent from the
+     * roster are skipped and returned, so the caller can show which ones missed.
+     * All or nothing: a database error rolls the whole import back.
+     */
+    static ImportResult importMarks(int courseId, String label, java.math.BigDecimal maxMarks,
+                                    java.util.Map<String, java.math.BigDecimal> scores) throws SQLException {
+        try (Connection con = connect()) {
+            con.setAutoCommit(false);
+            try {
+                int testId;
+                PreparedStatement find = con.prepareStatement(
+                    "SELECT test_id FROM Tests WHERE course_id = ? AND label = ?");
+                find.setInt(1, courseId);
+                find.setString(2, label);
+                ResultSet rs = find.executeQuery();
+                if (rs.next()) {
+                    testId = rs.getInt(1);
+                    PreparedStatement upd = con.prepareStatement(
+                        "UPDATE Tests SET max_marks = ? WHERE test_id = ?");
+                    upd.setBigDecimal(1, maxMarks);
+                    upd.setInt(2, testId);
+                    upd.executeUpdate();
+                } else {
+                    PreparedStatement ins = con.prepareStatement(
+                        "INSERT INTO Tests (course_id, label, max_marks) VALUES (?, ?, ?)",
+                        Statement.RETURN_GENERATED_KEYS);
+                    ins.setInt(1, courseId);
+                    ins.setString(2, label);
+                    ins.setBigDecimal(3, maxMarks);
+                    ins.executeUpdate();
+                    ResultSet keys = ins.getGeneratedKeys();
+                    keys.next();
+                    testId = keys.getInt(1);
+                }
+
+                PreparedStatement findStudent = con.prepareStatement(
+                    "SELECT student_id FROM Students WHERE reg_no = ?");
+                PreparedStatement mark = con.prepareStatement(
+                    "INSERT INTO Marks (student_id, test_id, score) VALUES (?, ?, ?) "
+                  + "ON DUPLICATE KEY UPDATE score = VALUES(score)");
+                int imported = 0;
+                List<String> unknown = new ArrayList<>();
+                for (java.util.Map.Entry<String, java.math.BigDecimal> e : scores.entrySet()) {
+                    findStudent.setString(1, e.getKey());
+                    ResultSet sr = findStudent.executeQuery();
+                    if (!sr.next()) {
+                        unknown.add(e.getKey());
+                        continue;
+                    }
+                    mark.setInt(1, sr.getInt(1));
+                    mark.setInt(2, testId);
+                    mark.setBigDecimal(3, e.getValue());
+                    mark.addBatch();
+                    imported++;
+                }
+                mark.executeBatch();
+                con.commit();
+                return new ImportResult(imported, unknown);
+            } catch (SQLException ex) {
+                con.rollback();
+                throw ex;
+            }
+        }
+    }
 }
