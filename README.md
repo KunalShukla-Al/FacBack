@@ -61,7 +61,7 @@ with any RA number.
 ## Reviews
 
 - **PBL-1:** title, purpose and design. Done.
-- **PBL-2, 9 Nov 2026:** a view for the faculty advisor of one section. In progress.
+- **PBL-2, 10 Nov 2026:** a view for the faculty advisor of one section. In progress.
 
 ## Team
 
