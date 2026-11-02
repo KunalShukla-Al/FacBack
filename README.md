@@ -88,6 +88,20 @@ with any RA number.
 | `AddTeacherForm.java` | Adds a teacher, their subject and login in one transaction |
 | `schema.sql` | Tables and sample data |
 
+## Tests
+
+The `logic` package is pure (no database, no UI), so it's unit-tested on its own.
+There's no JUnit on the classpath, so the tests are a small self-contained harness:
+
+```bash
+javac -d bin src/logic/*.java src/test/LogicTests.java
+java  -cp bin test.LogicTests
+```
+
+They cover the Context Score bands at each boundary, the zero-class-average guard,
+the thin-class visibility cut-off, and both gap rules (a wide shortfall flags; a
+small dip or missing data does not).
+
 ## Reviews
 
 - **PBL-1:** title, purpose and design. Done.
