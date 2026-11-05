@@ -99,6 +99,26 @@ CREATE TABLE IF NOT EXISTS FaOutcomes (
   FOREIGN KEY (student_id) REFERENCES Students(student_id) ON DELETE CASCADE
 );
 
+-- Misconduct report (from 4 Nov): a student reports exam malpractice to the subject's teacher.
+-- Anonymous to the teacher, accountable to the system — the reporter is a logged-in user the
+-- teacher never sees and only an admin can trace. The accused is identified by the teacher from
+-- the media, so no column names them. The media lives on disk; only its path is stored here.
+-- The outcome fields stay NULL until the teacher logs one, mirroring FaOutcomes.
+
+CREATE TABLE IF NOT EXISTS MisconductReports (
+  report_id    INT AUTO_INCREMENT PRIMARY KEY,
+  reporter     VARCHAR(30) NOT NULL,
+  course_id    INT NOT NULL,
+  media_path   VARCHAR(255) NOT NULL,
+  note         VARCHAR(300),
+  reported_at  DATETIME NOT NULL,
+  outcome      VARCHAR(40),
+  outcome_note VARCHAR(300),
+  outcome_on   DATE,
+  FOREIGN KEY (reporter)  REFERENCES Users(username)     ON DELETE CASCADE,
+  FOREIGN KEY (course_id) REFERENCES Courses(course_id)  ON DELETE CASCADE
+);
+
 INSERT IGNORE INTO Teachers (teacher_id, name, dept) VALUES
   (1, 'Faculty A', 'CSE (Data Science)'), (2, 'Faculty B', 'CSE (Data Science)'),
   (3, 'Faculty C', 'CSE (Core)'),         (4, 'Faculty D', 'ECE'),

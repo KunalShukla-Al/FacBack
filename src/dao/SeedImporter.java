@@ -1,3 +1,5 @@
+package dao;
+
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,7 +29,7 @@ public class SeedImporter {
 
     public static void main(String[] args) throws Exception {
         String dataDir = args.length > 0 ? args[0] : "data";
-        try (Connection conn = Database.connect()) {
+        try (Connection conn = Dao.connect()) {
             int students = importStudents(conn, Paths.get(dataDir, "students.csv"));
             int courses = importCourses(conn, Paths.get(dataDir, "subjects.csv"));
             int tests = importTests(conn, Paths.get(dataDir, "marks.csv"));
