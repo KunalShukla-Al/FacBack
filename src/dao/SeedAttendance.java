@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.sql.SQLException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -109,8 +110,10 @@ public class SeedAttendance {
 
     static Map<String, Integer> lookup(Connection con, String sql) throws SQLException {
         Map<String, Integer> map = new LinkedHashMap<>();
-        ResultSet rs = con.createStatement().executeQuery(sql);
-        while (rs.next()) map.put(rs.getString(1), rs.getInt(2));
+        try (Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) map.put(rs.getString(1), rs.getInt(2));
+        }
         return map;
     }
 }

@@ -1,7 +1,6 @@
 package dao;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -20,7 +19,7 @@ import java.util.Map;
 public class Dao {
 
     static Connection connect() throws SQLException {
-        return DriverManager.getConnection("jdbc:mysql://localhost:3306/facback", "root", "");
+        return Db.connect();
     }
 
     /** The section's id by name, or -1 when there's no such section. */
@@ -136,8 +135,10 @@ public class Dao {
 
     private Map<Integer, String[]> courseNames(Connection con) throws SQLException {
         Map<Integer, String[]> map = new LinkedHashMap<>();
-        ResultSet rs = con.createStatement().executeQuery("SELECT course_id, code, name FROM Courses");
-        while (rs.next()) map.put(rs.getInt(1), new String[] {rs.getString(2), rs.getString(3)});
+        try (Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery("SELECT course_id, code, name FROM Courses")) {
+            while (rs.next()) map.put(rs.getInt(1), new String[] {rs.getString(2), rs.getString(3)});
+        }
         return map;
     }
 

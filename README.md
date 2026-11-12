@@ -110,3 +110,10 @@ small dip or missing data does not).
 ## Team
 
 Kunal Shukla, Kavish Bohra, Aniruddha Bose.
+
+## Setup
+
+- **Database:** the app reads `FACBACK_DB_URL`, `FACBACK_DB_USER` and `FACBACK_DB_PASSWORD`. Without them it uses a local MySQL at `localhost:3306` with user `root` and an empty password.
+- **Review key:** set `FACBACK_SECRET`, or let the app create `data/review.key` on first use. Keep this key: changing it restarts every 14-day review cooldown.
+- **Existing databases:** run `migrations/001_hashing_and_outcome_history.sql` once. It widens the password column, clears the old unsalted review hashes, and adds the outcome history table. Accounts with plain-text passwords are upgraded to salted hashes on their next login.
+- **Tests:** `javac -d bin $(find src -name '*.java') && java -cp bin test.LogicTests`

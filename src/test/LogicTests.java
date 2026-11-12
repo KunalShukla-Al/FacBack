@@ -7,6 +7,8 @@ import logic.ContextScore;
 import logic.Flag;
 import logic.MarksGapRule;
 import logic.NotEnoughDataException;
+import logic.Passwords;
+import logic.ReviewHasher;
 import logic.StudentSubject;
 
 /**
@@ -73,6 +75,28 @@ public class LogicTests {
         run("attendance gap ignores a small dip and missing data", () -> {
             ok(new AttendanceGapRule().check(new StudentSubject("OS", null, 0, 72.0, 85.0)).isEmpty()); // 13 < margin
             ok(new AttendanceGapRule().check(new StudentSubject("OS", null, 0, null, 85.0)).isEmpty()); // no attendance
+        });
+
+        run("password hash round-trips and rejects a wrong password", () -> {
+            String stored = Passwords.hash("correct horse");
+            ok(Passwords.isHashed(stored));
+            ok(Passwords.matches("correct horse", stored));
+            ok(!Passwords.matches("Correct horse", stored));
+        });
+        run("password hashes differ for the same password (salted)", () -> {
+            ok(!Passwords.hash("same").equals(Passwords.hash("same")));
+        });
+        run("plain text from before hashing still matches", () -> {
+            ok(!Passwords.isHashed("pass"));
+            ok(Passwords.matches("pass", "pass"));
+            ok(!Passwords.matches("Pass", "pass"));
+        });
+        run("review hash is stable per student and course", () -> {
+            String a = ReviewHasher.hash("RA2511000010001", 3);
+            eq(64, a.length());
+            eq(a, ReviewHasher.hash("RA2511000010001", 3));
+            ok(!a.equals(ReviewHasher.hash("RA2511000010001", 4)));
+            ok(!a.equals(ReviewHasher.hash("RA2511000010002", 3)));
         });
 
         System.out.printf("%n%d passed, %d failed%n", passed, failed);

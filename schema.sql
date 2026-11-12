@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS Courses (
 
 CREATE TABLE IF NOT EXISTS Users (
   username   VARCHAR(30) PRIMARY KEY,
-  password   VARCHAR(30) COLLATE utf8mb4_bin NOT NULL,
+  password   VARCHAR(255) COLLATE utf8mb4_bin NOT NULL,
   role       ENUM('STUDENT', 'TEACHER', 'ADMIN') NOT NULL,
   teacher_id INT NULL,
   last_seen_review INT NOT NULL DEFAULT 0,
@@ -137,3 +137,12 @@ INSERT IGNORE INTO Users (username, password, role, teacher_id) VALUES
   ('facultyE', 'pass', 'TEACHER', 5), ('facultyF', 'pass', 'TEACHER', 6);
 INSERT IGNORE INTO Sections (section_id, name, fa_teacher) VALUES
   (1, 'AS1', NULL);
+
+CREATE TABLE IF NOT EXISTS MisconductOutcomes (
+  outcome_id   INT AUTO_INCREMENT PRIMARY KEY,
+  report_id    INT NOT NULL,
+  outcome      VARCHAR(40) NOT NULL,
+  outcome_note VARCHAR(300),
+  logged_on    DATE NOT NULL,
+  FOREIGN KEY (report_id) REFERENCES MisconductReports(report_id) ON DELETE CASCADE
+);

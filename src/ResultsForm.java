@@ -55,6 +55,11 @@ public class ResultsForm extends JFrame {
             btnImport.setBounds(20, 445, 140, 30);
             add(btnImport);
             btnImport.addActionListener(e -> new ImportMarksForm(teacherId).setVisible(true));
+
+            JButton btnQueue = new JButton("Misconduct queue");
+            btnQueue.setBounds(170, 445, 170, 30);
+            add(btnQueue);
+            btnQueue.addActionListener(e -> new ui.MisconductQueueForm(teacherId).setVisible(true));
         }
 
         JButton btnLogout = new JButton("Logout");

@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -43,6 +44,21 @@ public class ReportDao {
         }
     }
 
+    /** Every course as {id, "CODE - Name"}, for the reporter's subject list. */
+    public List<Object[]> courseChoices() {
+        List<Object[]> out = new ArrayList<>();
+        try (Connection con = Dao.connect()) {
+            try (Statement st = con.createStatement();
+                 ResultSet rs = st.executeQuery("SELECT course_id, code, name FROM Courses ORDER BY code")) {
+                while (rs.next())
+                    out.add(new Object[] {rs.getInt(1), rs.getString(2) + " - " + rs.getString(3)});
+            }
+        } catch (SQLException e) {
+            throw new DataAccessException("Couldn't load the subjects", e);
+        }
+        return out;
+    }
+
     /** The reports for the teacher's own subjects, newest first. The reporter is never read. */
     public List<Report> reportsForTeacher(int teacherId) {
         List<Report> out = new ArrayList<>();
@@ -74,9 +90,23 @@ public class ReportDao {
         return out;
     }
 
-    /** Record the teacher's outcome on a report, with the server's date. */
-    public void logOutcome(int reportId, String outcome, String note) {
+    /**
+     * Record the teacher's outcome on one of their own reports, with the server's date.
+     *
+     * @throws ReportException when the report isn't in the teacher's subjects.
+     */
+    public void logOutcome(int teacherId, int reportId, String outcome, String note)
+            throws ReportException {
         try (Connection con = Dao.connect()) {
+            con.setAutoCommit(false);
+            PreparedStatement own = con.prepareStatement(
+                "SELECT 1 FROM MisconductReports r JOIN Courses c ON c.course_id = r.course_id "
+              + "WHERE r.report_id = ? AND c.teacher_id = ?");
+            own.setInt(1, reportId);
+            own.setInt(2, teacherId);
+            if (!own.executeQuery().next())
+                throw new ReportException("That report isn't in your subjects.");
+
             PreparedStatement ps = con.prepareStatement(
                 "UPDATE MisconductReports SET outcome = ?, outcome_note = ?, outcome_on = ? "
               + "WHERE report_id = ?");
@@ -85,8 +115,35 @@ public class ReportDao {
             ps.setDate(3, java.sql.Date.valueOf(LocalDate.now()));
             ps.setInt(4, reportId);
             ps.executeUpdate();
+
+            PreparedStatement log = con.prepareStatement(
+                "INSERT INTO MisconductOutcomes (report_id, outcome, outcome_note, logged_on) VALUES (?, ?, ?, ?)");
+            log.setInt(1, reportId);
+            log.setString(2, outcome);
+            log.setString(3, note == null || note.isBlank() ? null : note);
+            log.setDate(4, java.sql.Date.valueOf(LocalDate.now()));
+            log.executeUpdate();
+            con.commit();
         } catch (SQLException e) {
             throw new DataAccessException("Couldn't log the outcome", e);
         }
+    }
+
+    /** Every outcome logged on a report, oldest first, as "date  outcome (note)" lines. */
+    public List<String> outcomeHistory(int reportId) {
+        List<String> out = new ArrayList<>();
+        try (Connection con = Dao.connect()) {
+            PreparedStatement ps = con.prepareStatement(
+                "SELECT logged_on, outcome, outcome_note FROM MisconductOutcomes WHERE report_id = ? ORDER BY outcome_id");
+            ps.setInt(1, reportId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                String note = rs.getString(3);
+                out.add(rs.getDate(1).toLocalDate() + "  " + rs.getString(2) + (note == null ? "" : " (" + note + ")"));
+            }
+        } catch (SQLException e) {
+            throw new DataAccessException("Couldn't read the outcome history", e);
+        }
+        return out;
     }
 }

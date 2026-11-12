@@ -72,6 +72,11 @@ public class FeedbackForm extends JFrame {
             new LoginForm().setVisible(true);
         });
 
+        JButton btnReport = new JButton("Report misconduct");
+        btnReport.setBounds(150, 440, 180, 30);
+        add(btnReport);
+        btnReport.addActionListener(e -> new ui.ReportMisconductForm(username).setVisible(true));
+
         try {
             for (String d : Database.getDepartments()) cmbDept.addItem(d);
         } catch (Exception ex) {

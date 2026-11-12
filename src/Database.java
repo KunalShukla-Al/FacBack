@@ -1,9 +1,11 @@
-import java.security.MessageDigest;
+import dao.Db;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import logic.Passwords;
+import logic.ReviewHasher;
 
 public class Database {
 
@@ -15,24 +17,29 @@ public class Database {
         }
     }
 
-    static Connection connect() throws SQLException {
-        return DriverManager.getConnection("jdbc:mysql://localhost:3306/facback", "root", "");
-    }
-
-    static Object[] login(String username, String password) throws SQLException {
-        try (Connection con = connect()) {
+    static Object[] login(String username, String password) throws Exception {
+        try (Connection con = Db.connect()) {
             PreparedStatement ps = con.prepareStatement(
-                "SELECT role, teacher_id FROM Users WHERE username = ? AND password = ?");
+                "SELECT password, role, teacher_id FROM Users WHERE username = ?");
             ps.setString(1, username);
-            ps.setString(2, password);
             ResultSet rs = ps.executeQuery();
             if (!rs.next()) return null;
-            return new Object[] {rs.getString("role"), rs.getInt("teacher_id")};
+            String stored = rs.getString(1);
+            if (!Passwords.matches(password, stored)) return null;
+            if (!Passwords.isHashed(stored)) setPassword(con, username, Passwords.hash(password));
+            return new Object[] {rs.getString(2), rs.getInt(3)};
         }
     }
 
+    private static void setPassword(Connection con, String username, String hash) throws SQLException {
+        PreparedStatement ps = con.prepareStatement("UPDATE Users SET password = ? WHERE username = ?");
+        ps.setString(1, hash);
+        ps.setString(2, username);
+        ps.executeUpdate();
+    }
+
     static int newReviewsSinceLastLogin(String username, int teacherId) throws SQLException {
-        try (Connection con = connect()) {
+        try (Connection con = Db.connect()) {
             PreparedStatement count = con.prepareStatement(
                 "SELECT COUNT(*) FROM Reviews r JOIN Courses c ON c.course_id = r.course_id "
               + "WHERE c.teacher_id = ? AND r.review_id > (SELECT last_seen_review FROM Users WHERE username = ?)");
@@ -50,19 +57,20 @@ public class Database {
         }
     }
 
-    static void registerStudent(String regNo, String password) throws SQLException {
-        try (Connection con = connect()) {
+    static void registerStudent(String regNo, String password) throws Exception {
+        try (Connection con = Db.connect()) {
             PreparedStatement ps = con.prepareStatement("INSERT INTO Users (username, password, role) VALUES (?, ?, 'STUDENT')");
             ps.setString(1, regNo);
-            ps.setString(2, password);
+            ps.setString(2, Passwords.hash(password));
             ps.executeUpdate();
         }
     }
 
     static List<String> getDepartments() throws SQLException {
         List<String> list = new ArrayList<>();
-        try (Connection con = connect()) {
-            ResultSet rs = con.createStatement().executeQuery("SELECT DISTINCT dept FROM Teachers ORDER BY dept");
+        try (Connection con = Db.connect();
+             Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery("SELECT DISTINCT dept FROM Teachers ORDER BY dept")) {
             while (rs.next()) list.add(rs.getString(1));
         }
         return list;
@@ -70,7 +78,7 @@ public class Database {
 
     static List<Object[]> getTeachers(String dept) throws SQLException {
         List<Object[]> list = new ArrayList<>();
-        try (Connection con = connect()) {
+        try (Connection con = Db.connect()) {
             PreparedStatement ps = con.prepareStatement(
                 "SELECT teacher_id, name FROM Teachers WHERE dept = ? ORDER BY name");
             ps.setString(1, dept);
@@ -82,7 +90,7 @@ public class Database {
 
     static List<Object[]> getCourses(int teacherId) throws SQLException {
         List<Object[]> list = new ArrayList<>();
-        try (Connection con = connect()) {
+        try (Connection con = Db.connect()) {
             PreparedStatement ps = con.prepareStatement(
                 "SELECT course_id, code, name FROM Courses WHERE teacher_id = ? ORDER BY code");
             ps.setInt(1, teacherId);
@@ -92,17 +100,10 @@ public class Database {
         return list;
     }
 
-    static String hash(String username, int courseId) throws Exception {
-        byte[] bytes = MessageDigest.getInstance("SHA-256").digest((username + ":" + courseId).getBytes("UTF-8"));
-        StringBuilder hex = new StringBuilder();
-        for (byte b : bytes) hex.append(String.format("%02x", b));
-        return hex.toString();
-    }
-
     static void submitReview(String username, int courseId, int[] ratings, String comment) throws Exception {
-        String key = hash(username, courseId);
+        String key = ReviewHasher.hash(username, courseId);
         LocalDate today = LocalDate.now();
-        try (Connection con = connect()) {
+        try (Connection con = Db.connect()) {
             con.setAutoCommit(false);
             try {
                 PreparedStatement check = con.prepareStatement(
@@ -149,7 +150,7 @@ public class Database {
                    + "WHERE ? = 0 OR t.teacher_id = ? "
                    + "GROUP BY c.course_id ORDER BY t.dept, t.name, c.code";
         List<Object[]> list = new ArrayList<>();
-        try (Connection con = connect()) {
+        try (Connection con = Db.connect()) {
             PreparedStatement ps = con.prepareStatement(sql);
             ps.setInt(1, teacherId);
             ps.setInt(2, teacherId);
@@ -164,7 +165,7 @@ public class Database {
 
     static List<Object[]> getComments(int courseId) throws SQLException {
         List<Object[]> list = new ArrayList<>();
-        try (Connection con = connect()) {
+        try (Connection con = Db.connect()) {
             PreparedStatement ps = con.prepareStatement(
                 "SELECT review_month, overall, comment FROM Reviews WHERE course_id = ? ORDER BY review_month DESC");
             ps.setInt(1, courseId);
@@ -175,8 +176,8 @@ public class Database {
     }
 
     static void addTeacher(String name, String dept, String code, String subject,
-                           String username, String password) throws SQLException {
-        try (Connection con = connect()) {
+                           String username, String password) throws Exception {
+        try (Connection con = Db.connect()) {
             con.setAutoCommit(false);
             try {
                 PreparedStatement t = con.prepareStatement(
@@ -197,7 +198,7 @@ public class Database {
                 PreparedStatement u = con.prepareStatement(
                     "INSERT INTO Users (username, password, role, teacher_id) VALUES (?, ?, 'TEACHER', ?)");
                 u.setString(1, username);
-                u.setString(2, password);
+                u.setString(2, Passwords.hash(password));
                 u.setInt(3, teacherId);
                 u.executeUpdate();
                 con.commit();
@@ -228,7 +229,7 @@ public class Database {
      */
     static ImportResult importMarks(int courseId, String label, java.math.BigDecimal maxMarks,
                                     java.util.Map<String, java.math.BigDecimal> scores) throws SQLException {
-        try (Connection con = connect()) {
+        try (Connection con = Db.connect()) {
             con.setAutoCommit(false);
             try {
                 int testId;
