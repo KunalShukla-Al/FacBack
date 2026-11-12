@@ -112,6 +112,16 @@ public class FeedbackForm extends JFrame {
             JOptionPane.showMessageDialog(this, "Choose a subject");
             return;
         }
+        try {
+            String wait = Database.cooldownMessage(username, (Integer) courses.get(c)[0]);
+            if (wait != null) {
+                JOptionPane.showMessageDialog(this, wait);
+                return;
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+            return;
+        }
         int[] ratings = new int[4];
         for (int i = 0; i < 4; i++) {
             for (int r = 0; r < 5; r++) {

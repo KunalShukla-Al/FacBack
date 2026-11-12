@@ -100,6 +100,22 @@ public class Database {
         return list;
     }
 
+    /** The cooldown message for this student and course, or null when a review is allowed now. */
+    static String cooldownMessage(String username, int courseId) throws Exception {
+        try (Connection con = Db.connect()) {
+            PreparedStatement ps = con.prepareStatement("SELECT last_submitted FROM Submissions WHERE hash = ?");
+            ps.setString(1, ReviewHasher.hash(username, courseId));
+            ResultSet rs = ps.executeQuery();
+            if (!rs.next()) return null;
+            LocalDate today = LocalDate.now();
+            LocalDate nextAllowed = rs.getDate(1).toLocalDate().plusDays(COOLDOWN_DAYS);
+            if (!today.isBefore(nextAllowed)) return null;
+            long days = ChronoUnit.DAYS.between(today, nextAllowed);
+            return "You reviewed this subject recently. You can review it again in "
+                + days + " day(s), from " + nextAllowed + ".";
+        }
+    }
+
     static void submitReview(String username, int courseId, int[] ratings, String comment) throws Exception {
         String key = ReviewHasher.hash(username, courseId);
         LocalDate today = LocalDate.now();
