@@ -68,6 +68,6 @@ public class LoginForm extends JFrame {
     }
 
     public static void main(String[] args) {
-        new LoginForm().setVisible(true);
+        SwingUtilities.invokeLater(() -> new LoginForm().setVisible(true));
     }
 }

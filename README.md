@@ -11,7 +11,7 @@ Programming course (21CSC206P) at SRM Institute of Science and Technology.
 
 - The `Reviews` table has no student column. A review stores its scores, the comment and the
   month (`YYYY-MM`), nothing else.
-- To stop repeat reviews, `Submissions` keeps a SHA-256 hash of the RA number and course, with the
+- To stop repeat reviews, `Submissions` keeps an HMAC-SHA256 tag of the RA number and course, with the
   date. The same student can review the same subject again after 14 days.
 
 ## Roles
@@ -45,8 +45,8 @@ It's laid out in three packages:
 
 ## Running it
 
-1. Start MySQL 8 locally. `Database.java` connects as `root` with no password; change it there if
-   yours differs.
+1. Start MySQL 8 locally. Set `FACBACK_DB_URL`, `FACBACK_DB_USER` and
+   `FACBACK_DB_PASSWORD` for your database. Local demo defaults are root with an empty password.
 2. Create the database and sample data:
 
    ```
@@ -117,3 +117,15 @@ Kunal Shukla, Kavish Bohra, Aniruddha Bose.
 - **Review key:** set `FACBACK_SECRET`, or let the app create `data/review.key` on first use. Keep this key: changing it restarts every 14-day review cooldown.
 - **Existing databases:** run `migrations/001_hashing_and_outcome_history.sql` once. It widens the password column, clears the old unsalted review hashes, and adds the outcome history table. Accounts with plain-text passwords are upgraded to salted hashes on their next login.
 - **Tests:** `javac -d bin $(find src -name '*.java') && java -cp bin test.LogicTests`
+
+## PBL-II threading
+
+CSV reads and marks imports use `ui.BackgroundTask`, a `SwingWorker` that runs blocking work off the Swing event-dispatch thread. The form snapshots input, disables controls during work, shows an activity indicator, and handles completion or failure on the EDT. The login screen is created with `SwingUtilities.invokeLater`.
+
+Run the additional thread tests after compiling all sources:
+
+```sh
+java -Djava.awt.headless=true -cp bin test.BackgroundTaskTests
+```
+
+See [PBL coverage and demo](docs/pbl/PBL-COVERAGE.md) and [report corrections](docs/pbl/REPORT-REVIEW.md).
