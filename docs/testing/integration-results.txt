@@ -1,0 +1,18 @@
+Tested application commit da7decf
+Run date: 17 November 2026 IST
+MySQL 26.7.0
+PASS: registration stores hash
+PASS: correct and incorrect login
+PASS: legacy login upgrades hash
+PASS: review and cooldown persisted
+PASS: 14 day cooldown rejects duplicate
+PASS: failed review rolls back cooldown and review
+PASS: report routed to owning teacher
+PASS: wrong teacher refused without history write
+PASS: owner outcome and history persisted
+PASS: two outcomes retain history
+PASS: empty media path rejected
+PASS: unsupported media extension rejected
+PASS: media copied
+PASS: discard removes media copy
+TOTAL: 14 passed, 0 failed
